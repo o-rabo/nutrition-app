@@ -1,58 +1,52 @@
 import { useState } from 'react'
-import { colors, typography, spacing, borderRadius } from '../../index'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { colors, typography, spacing, borderRadius } from '../../tokens'
 import { Icon } from '../Icon'
 
 function MealRow({ label, subtitle, calories, iconName, onPress, style }) {
-  const [isHovered, setIsHovered] = useState(false)
-  const [isPressed, setIsPressed] = useState(false)
+  const [pressed, setPressed] = useState(false)
 
   const hasCalories = typeof calories === 'number'
 
   return (
-    <button
-      type="button"
-      onClick={onPress}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => {
-        setIsHovered(false)
-        setIsPressed(false)
-      }}
-      onMouseDown={() => setIsPressed(true)}
-      onMouseUp={() => setIsPressed(false)}
-      style={{
-        background: colors.background.card,
-        border: `0.5px solid ${colors.border.subtle}`,
-        borderRadius: borderRadius['2xl'],
-        padding: spacing[2],
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        width: '100%',
-        cursor: 'pointer',
-        transition: 'opacity 0.15s',
-        boxSizing: 'border-box',
-        opacity: isHovered ? 0.75 : 1,
-        transform: isPressed ? 'scale(0.98)' : 'none',
-        ...style,
-      }}
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      style={[
+        {
+          backgroundColor: colors.background.card,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border.subtle,
+          borderRadius: borderRadius['2xl'],
+          padding: spacing[2],
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          opacity: pressed ? 0.75 : 1,
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+        },
+        style,
+      ]}
     >
-      <div
+      <View
         style={{
-          display: 'flex',
+          flexDirection: 'row',
           alignItems: 'center',
           gap: spacing.iconGap,
+          flex: 1,
         }}
       >
-        <div
+        <View
           style={{
             width: spacing[5],
             height: spacing[5],
-            background: colors.background.iconWell ?? colors.background.cardDeep,
+            backgroundColor:
+              colors.background.iconWell ?? colors.background.cardDeep,
             borderRadius: borderRadius.lg,
-            display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            flexShrink: 0,
           }}
         >
           <Icon
@@ -60,75 +54,68 @@ function MealRow({ label, subtitle, calories, iconName, onPress, style }) {
             size={18}
             color={colors.accent.icon ?? colors.accent.default}
           />
-        </div>
-        <div style={{ textAlign: 'left' }}>
-          <p
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
             style={{
-              margin: 0,
               fontSize: typography.fontSize.base,
-              fontFamily: typography.fontFamily.sans,
-              fontWeight: typography.fontWeight.medium,
+              fontWeight: String(typography.fontWeight.medium),
               color: colors.text.primary,
-              lineHeight: typography.lineHeight.snug,
+              lineHeight: typography.fontSize.base * typography.lineHeight.snug,
             }}
           >
             {label}
-          </p>
-          <p
+          </Text>
+          <Text
             style={{
-              margin: '2px 0 0',
+              marginTop: 2,
               fontSize: typography.fontSize.bodySmall,
-              fontFamily: typography.fontFamily.sans,
-              fontWeight: typography.fontWeight.regular,
+              fontWeight: String(typography.fontWeight.regular),
               color: colors.text.secondary,
-              lineHeight: typography.lineHeight.normal,
+              lineHeight:
+                typography.fontSize.bodySmall * typography.lineHeight.normal,
             }}
           >
             {subtitle}
-          </p>
-        </div>
-      </div>
-      <div style={{ textAlign: 'right' }}>
+          </Text>
+        </View>
+      </View>
+      <View style={{ alignItems: 'flex-end' }}>
         {hasCalories ? (
           <>
-            <p
+            <Text
               style={{
-                margin: 0,
                 fontSize: typography.fontSize.base,
-                fontFamily: typography.fontFamily.sans,
-                fontWeight: typography.fontWeight.medium,
+                fontWeight: String(typography.fontWeight.medium),
                 color: colors.text.accent,
               }}
             >
               {calories.toLocaleString()}
-            </p>
-            <p
+            </Text>
+            <Text
               style={{
-                margin: '1px 0 0',
+                marginTop: 1,
                 fontSize: typography.fontSize.micro,
-                fontFamily: typography.fontFamily.sans,
-                fontWeight: typography.fontWeight.regular,
+                fontWeight: String(typography.fontWeight.regular),
                 color: colors.text.muted,
               }}
             >
               kcal
-            </p>
+            </Text>
           </>
         ) : (
-          <p
+          <Text
             style={{
-              margin: 0,
               fontSize: typography.fontSize.base,
-              fontFamily: typography.fontFamily.sans,
-              fontWeight: typography.fontWeight.regular,
+              fontWeight: String(typography.fontWeight.regular),
               color: colors.text.ghost ?? colors.text.muted,
             }}
           >
             + add
-          </p>
+          </Text>
         )}
-      </div>
-    </button>
+      </View>
+    </Pressable>
   )
 }
 

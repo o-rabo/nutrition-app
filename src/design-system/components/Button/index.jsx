@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { colors, typography, spacing, borderRadius } from '../../index'
+import { Pressable, Text, StyleSheet } from 'react-native'
+import { colors, typography, spacing, borderRadius } from '../../tokens'
 
 function Button({
   label,
@@ -9,61 +10,59 @@ function Button({
   fullWidth = true,
   style,
 }) {
-  const [isHovered, setIsHovered] = useState(false)
-  const [isPressed, setIsPressed] = useState(false)
+  const [pressed, setPressed] = useState(false)
 
   const interactive = colors.interactive
-
-  const opacity = disabled ? 0.5 : isHovered ? 0.8 : 1
+  const opacity = disabled ? 0.5 : pressed ? 0.85 : 1
 
   const primaryStyles = {
-    background: interactive.primaryBg ?? interactive.primary,
-    color: interactive.primaryLabel,
-    border: 'none',
+    backgroundColor: interactive.primaryBg ?? interactive.primary,
+    borderWidth: 0,
     borderRadius: borderRadius.full,
-    padding: `${spacing[2]} ${spacing[3]}`,
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.sans,
-    fontWeight: typography.fontWeight.medium,
-    width: fullWidth ? '100%' : 'auto',
-    cursor: disabled ? 'not-allowed' : 'pointer',
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[3],
+    width: fullWidth ? '100%' : undefined,
+    alignSelf: fullWidth ? 'stretch' : 'flex-start',
     opacity,
-    transform: isPressed && !disabled ? 'scale(0.98)' : 'none',
+    transform: [{ scale: pressed && !disabled ? 0.98 : 1 }],
   }
 
   const ghostStyles = {
-    background: interactive.ghostBg ?? interactive.ghost,
-    color: interactive.ghostLabel,
-    border: `0.5px solid ${interactive.ghostBorder}`,
+    backgroundColor: interactive.ghostBg ?? interactive.ghost,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: interactive.ghostBorder,
     borderRadius: borderRadius.full,
-    padding: `${spacing[2]} ${spacing[3]}`,
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.sans,
-    fontWeight: typography.fontWeight.medium,
-    width: fullWidth ? '100%' : 'auto',
-    cursor: disabled ? 'not-allowed' : 'pointer',
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[3],
+    width: fullWidth ? '100%' : undefined,
+    alignSelf: fullWidth ? 'stretch' : 'flex-start',
     opacity,
-    transform: isPressed && !disabled ? 'scale(0.98)' : 'none',
+    transform: [{ scale: pressed && !disabled ? 0.98 : 1 }],
   }
 
   const variantStyles = variant === 'ghost' ? ghostStyles : primaryStyles
+  const textColor =
+    variant === 'ghost' ? interactive.ghostLabel : interactive.primaryLabel
 
   return (
-    <button
-      type="button"
+    <Pressable
       disabled={disabled}
-      onClick={onPress}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => {
-        setIsHovered(false)
-        setIsPressed(false)
-      }}
-      onMouseDown={() => !disabled && setIsPressed(true)}
-      onMouseUp={() => setIsPressed(false)}
-      style={{ ...variantStyles, ...style }}
+      onPress={onPress}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      style={[variantStyles, style]}
     >
-      {label}
-    </button>
+      <Text
+        style={{
+          fontSize: typography.fontSize.base,
+          fontWeight: String(typography.fontWeight.medium),
+          color: textColor,
+          textAlign: 'center',
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
   )
 }
 

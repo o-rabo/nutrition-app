@@ -1,32 +1,36 @@
-import { colors, spacing, borderRadius } from '../../index'
+import { View } from 'react-native'
+import { colors, spacing, borderRadius } from '../../tokens'
 
 function ProgressBar({
   value,
-  height = spacing.half,
-  trackColor = colors.ring?.track ?? colors.border.subtle,
-  fillColor = colors.ring?.fill ?? colors.accent.default,
-  borderRadius: radius = borderRadius.subtle,
+  height: heightProp,
+  trackColor = colors.ring.track,
+  fillColor = colors.ring.fill,
+  borderRadius: radiusProp = borderRadius.subtle,
 }) {
   const safeValue = Math.max(0, Math.min(100, value))
+  const height = heightProp != null ? heightProp : spacing.half
+  const radius = radiusProp
 
   return (
-    <div
+    <View
       style={{
         width: '100%',
-        background: trackColor,
+        backgroundColor: trackColor,
         height,
         borderRadius: radius,
+        overflow: 'hidden',
       }}
     >
-      <div
+      <View
         style={{
           width: `${safeValue}%`,
-          background: fillColor,
+          backgroundColor: fillColor,
           height: '100%',
           borderRadius: radius,
         }}
       />
-    </div>
+    </View>
   )
 }
 

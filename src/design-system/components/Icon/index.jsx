@@ -1,12 +1,7 @@
-import { colors } from '../../index'
+import { SvgXml } from 'react-native-svg'
 import { icons } from './icons'
 
-function Icon({
-  name,
-  size = 18,
-  color = colors.accent.icon,
-  style,
-}) {
+function Icon({ name, size = 18, color, style }) {
   const icon = icons[name]
 
   if (!icon) {
@@ -14,17 +9,15 @@ function Icon({
     return null
   }
 
+  const xml = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${icon.viewBox}">${icon.content}</svg>`
+
   return (
-    <svg
+    <SvgXml
+      xml={xml}
       width={size}
       height={size}
-      viewBox={icon.viewBox}
-      style={{
-        color,
-        display: 'block',
-        ...style,
-      }}
-      dangerouslySetInnerHTML={{ __html: icon.content }}
+      color={color}
+      style={style}
     />
   )
 }

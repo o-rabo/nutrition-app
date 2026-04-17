@@ -33,6 +33,7 @@ export const colors = {
     app: primitives.green[950],
     card: primitives.green[700],
     cardDeep: primitives.green[800],
+    iconWell: primitives.green[800],
     overlay: primitives.black[45],
     tabBar: primitives.green[900],
   },
@@ -47,12 +48,20 @@ export const colors = {
     muted: primitives.white[45],
     faint: primitives.white[35],
     accent: primitives.green[100],
+    ghost: primitives.white[45],
   },
   accent: {
     default: primitives.green[300],
     strong: primitives.green[400],
     subtle: primitives.green[600],
     glow: primitives.green[200],
+    icon: primitives.green[300],
+    activeTab: primitives.green[100],
+    bar: primitives.green[300],
+  },
+  ring: {
+    track: primitives.green[600],
+    fill: primitives.green[300],
   },
   interactive: {
     primary: primitives.green[400],

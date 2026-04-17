@@ -10,15 +10,16 @@ export const typography = {
   },
 
   fontSize: {
-    micro:     `${BASE * 1.25}px`,   // 10px — tab labels, tile labels
-    caption:   `${BASE * 1.5}px`,    // 12px — units, date, overlines
-    bodySmall: `${BASE * 1.75}px`,   // 14px — subtitles, hints
-    base:      `${BASE * 2}px`,      // 16px — meal names, body text
-    h3:        `${BASE * 2.25}px`,   // 18px — screen titles
-    h2:        `${BASE * 2.75}px`,   // 22px — page headings
-    h1:        `${BASE * 3}px`,      // 24px — quantity picker
-    displaySm: `${BASE * 4}px`,      // 32px — confirmation totals
-    display:   `${BASE * 5.25}px`,   // 42px — calorie ring number
+    micro:     BASE * 1.25,   // 10 — tab labels, tile labels
+    caption:   BASE * 1.5,    // 12 — units, date, overlines
+    label:     BASE * 1.75,   // 14 — macro tile values
+    bodySmall: BASE * 1.75,   // 14 — subtitles, hints
+    base:      BASE * 2,      // 16 — meal names, body text
+    h3:        BASE * 2.25,   // 18 — screen titles
+    h2:        BASE * 2.75,   // 22 — page headings
+    h1:        BASE * 3,       // 24 — quantity picker
+    displaySm: BASE * 4,      // 32 — confirmation totals
+    display:   BASE * 5.25,   // 42 — calorie ring number
   },
 
   fontWeight: {
@@ -34,10 +35,10 @@ export const typography = {
   },
 
   letterSpacing: {
-    normal:  '0',        // most text
-    wide:    '0.02em',   // date label
-    wider:   '0.04em',   // macro tile labels
-    widest:  '0.08em',   // overlines "MEALS", "TODAY'S CALORIES"
+    normal:  0,
+    wide:    0.3,
+    wider:   0.5,
+    widest:  1.2,
   },
 
   textTransform: {

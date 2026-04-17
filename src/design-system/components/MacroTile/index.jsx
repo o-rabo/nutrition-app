@@ -1,53 +1,55 @@
-import { colors, typography, spacing, borderRadius } from '../../index'
+import { View, Text, StyleSheet } from 'react-native'
+import { colors, typography, spacing, borderRadius } from '../../tokens'
 import { ProgressBar } from '../ProgressBar'
 
 function MacroTile({ label, value, progress, style }) {
   return (
-    <div
-      style={{
-        background: colors.background.cardDeep,
-        border: `0.5px solid ${colors.border.subtle}`,
-        borderRadius: borderRadius.lg,
-        padding: `${spacing[1.5]} ${spacing[2]}`,
-        textAlign: 'center',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: spacing[1],
-        ...style,
-      }}
+    <View
+      style={[
+        {
+          backgroundColor: colors.background.cardDeep,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border.subtle,
+          borderRadius: borderRadius.lg,
+          paddingVertical: spacing[1.5],
+          paddingHorizontal: spacing[2],
+          alignItems: 'center',
+          gap: spacing[1],
+          flex: 1,
+        },
+        style,
+      ]}
     >
-      <p
+      <Text
         style={{
-          margin: 0,
           fontSize: typography.fontSize.micro,
-          fontFamily: typography.fontFamily.sans,
-          fontWeight: typography.fontWeight.regular,
+          fontWeight: String(typography.fontWeight.regular),
           color: colors.text.secondary,
           letterSpacing: typography.letterSpacing.wider,
-          textTransform: typography.textTransform.none,
+          textTransform: 'none',
+          textAlign: 'center',
         }}
       >
         {label}
-      </p>
-      <p
+      </Text>
+      <Text
         style={{
-          margin: 0,
-          fontSize: typography.fontSize.label ?? typography.fontSize.caption,
-          fontFamily: typography.fontFamily.sans,
-          fontWeight: typography.fontWeight.medium,
+          fontSize: typography.fontSize.label,
+          fontWeight: String(typography.fontWeight.medium),
           color: colors.text.accent,
-          lineHeight: typography.lineHeight.tight,
+          lineHeight: typography.fontSize.label * typography.lineHeight.tight,
+          textAlign: 'center',
         }}
       >
         {value}
-      </p>
+      </Text>
       <ProgressBar
         value={progress}
         height={spacing.half}
-        trackColor={colors.ring?.track ?? colors.border.subtle}
-        fillColor={colors.accent?.bar ?? colors.accent.default}
+        trackColor={colors.ring.track}
+        fillColor={colors.accent.bar}
       />
-    </div>
+    </View>
   )
 }
 
