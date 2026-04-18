@@ -1,8 +1,24 @@
 import { View, Text } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
 import { colors, typography, spacing } from '../../tokens'
 import { MealRow } from '../MealRow'
 
 function MealsList({ meals, onMealPress, style }) {
+  const navigation = useNavigation()
+
+  const handleMealPress = (id) => {
+    if (onMealPress) {
+      onMealPress(id)
+      return
+    }
+    const meal = meals.find((m) => m.id === id)
+    if (meal?.label) {
+      navigation.navigate('Search', {
+        mealType: meal.label.toLowerCase(),
+      })
+    }
+  }
+
   return (
     <View
       style={[
@@ -32,7 +48,7 @@ function MealsList({ meals, onMealPress, style }) {
             subtitle={meal.subtitle}
             iconName={meal.iconName}
             calories={meal.calories}
-            onPress={() => onMealPress?.(meal.id)}
+            onPress={() => handleMealPress(meal.id)}
           />
         ))}
       </View>

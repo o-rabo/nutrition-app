@@ -33,8 +33,11 @@ function TabBarItem({
     >
       <Icon
         name={iconName}
-        size={22}
-        color={active ? colors.accent.activeTab : colors.text.secondary}
+        size={24}
+        color={active
+          ? colors.accent.activeTab
+          : colors.text.secondary}
+        solid={active}
       />
       <Text
         style={{

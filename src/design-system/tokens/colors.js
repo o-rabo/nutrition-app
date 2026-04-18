@@ -58,6 +58,7 @@ export const colors = {
     icon: primitives.green[300],
     activeTab: primitives.green[100],
     bar: primitives.green[300],
+    ring: primitives.green[300],
   },
   ring: {
     track: primitives.green[600],
@@ -65,6 +66,7 @@ export const colors = {
   },
   interactive: {
     primary: primitives.green[400],
+    primaryBg: primitives.green[400],
     primaryLabel: primitives.green[50],
     ghost: 'transparent',
     ghostLabel: primitives.green[200],
