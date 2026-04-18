@@ -1,37 +1,19 @@
-import { useState, useCallback } from 'react'
 import {
   View,
   Text,
   ScrollView,
 } from 'react-native'
-import { useNavigation, useFocusEffect } from '@react-navigation/native'
+import { useNavigation } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors, typography, spacing }
   from '../../design-system/tokens'
-import { MacroCard, MealsList, TabBar }
+import { MacroCard, MealsList }
   from '../../design-system/components'
 import { useNutrition } from '../../context/NutritionContext'
 
 function HomeScreen() {
   const navigation = useNavigation()
-  const [activeTab, setActiveTab] = useState('today')
   const insets = useSafeAreaInsets()
-
-  useFocusEffect(
-    useCallback(() => {
-      setActiveTab('today')
-    }, []),
-  )
-
-  const handleTabPress = useCallback((tabId) => {
-    if (tabId === 'today') {
-      navigation.navigate('Home')
-    } else if (tabId === 'diary') {
-      navigation.navigate('Diary')
-    } else if (tabId === 'profile') {
-      navigation.navigate('Profile')
-    }
-  }, [navigation])
 
   const {
     meals,
@@ -162,10 +144,6 @@ function HomeScreen() {
           />
         </>
       </ScrollView>
-      <TabBar
-        activeTab={activeTab}
-        onTabPress={handleTabPress}
-      />
     </View>
   )
 }

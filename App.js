@@ -1,24 +1,27 @@
 import 'react-native-gesture-handler'
-import { View, Text } from 'react-native'
+import { View, Text, ActivityIndicator } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import Toast from 'react-native-toast-message'
 import {
   HomeScreen,
-  MealLogScreen,
-  BarcodeScannerScreen,
-  SearchScreen,
-  MealDetailScreen,
-  MealScreen,
   DiaryScreen,
   ProfileScreen,
+  MealScreen,
+  SearchScreen,
+  MealDetailScreen,
+  BarcodeScannerScreen,
+  MealLogScreen,
 } from './src/screens'
-import { NutritionProvider } from './src/context/NutritionContext'
+import { NutritionProvider, useNutrition } from './src/context/NutritionContext'
+import { Icon } from './src/design-system'
 
 const Stack = createNativeStackNavigator()
+const Tab = createBottomTabNavigator()
 
 const toastConfig = {
   success: ({ text1 }) => (
@@ -70,26 +73,124 @@ const toastConfig = {
   ),
 }
 
+function TabNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: '#0a2010',
+          borderTopWidth: 0.5,
+          borderTopColor: '#1e4d2b',
+          paddingTop: 8,
+          paddingBottom: 28,
+          height: 80,
+        },
+        tabBarActiveTintColor: '#6acc7e',
+        tabBarInactiveTintColor: 'rgba(255,255,255,0.45)',
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '500',
+          marginTop: 2,
+        },
+        animation: 'none',
+      }}
+    >
+      <Tab.Screen
+        name="Today"
+        component={HomeScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <Icon
+              name="today"
+              size={24}
+              color={color}
+              solid={focused}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Diary"
+        component={DiaryScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <Icon
+              name="diary"
+              size={24}
+              color={color}
+              solid={focused}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <Icon
+              name="profile"
+              size={24}
+              color={color}
+              solid={focused}
+            />
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  )
+}
+
+function AppNavigator() {
+  const { isLoaded } = useNutrition()
+
+  if (!isLoaded) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#0d2b17',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <ActivityIndicator
+          size="large"
+          color="#5bb56e"
+        />
+      </View>
+    )
+  }
+
+  return (
+    <>
+      <StatusBar style="light" />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen
+          name="MainTabs"
+          component={TabNavigator}
+        />
+        <Stack.Screen name="Meal" component={MealScreen} />
+        <Stack.Screen name="Search" component={SearchScreen} />
+        <Stack.Screen name="MealDetail" component={MealDetailScreen} />
+        <Stack.Screen
+          name="BarcodeScanner"
+          component={BarcodeScannerScreen}
+        />
+        <Stack.Screen name="MealLog" component={MealLogScreen} />
+      </Stack.Navigator>
+    </>
+  )
+}
+
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <NutritionProvider>
           <NavigationContainer>
-            <StatusBar style="light" />
-            <Stack.Navigator screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="Home" component={HomeScreen} />
-              <Stack.Screen name="Diary" component={DiaryScreen} />
-              <Stack.Screen name="Profile" component={ProfileScreen} />
-              <Stack.Screen name="MealLog" component={MealLogScreen} />
-              <Stack.Screen name="Search" component={SearchScreen} />
-              <Stack.Screen name="Meal" component={MealScreen} />
-              <Stack.Screen name="MealDetail" component={MealDetailScreen} />
-              <Stack.Screen
-                name="BarcodeScanner"
-                component={BarcodeScannerScreen}
-              />
-            </Stack.Navigator>
+            <AppNavigator />
             <Toast config={toastConfig} />
           </NavigationContainer>
         </NutritionProvider>

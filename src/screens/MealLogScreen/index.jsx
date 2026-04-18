@@ -17,7 +17,6 @@ import {
   spacing,
   borderRadius,
   Icon,
-  TabBar,
 } from '../../design-system'
 
 function MealLogScreen() {
@@ -116,15 +115,6 @@ function MealLogScreen() {
           )}
         </View>
       </KeyboardAvoidingView>
-
-      <TabBar
-        activeTab="home"
-        onTabPress={(id) => {
-          if (id === 'home') {
-            navigation.navigate('Home')
-          }
-        }}
-      />
     </View>
   )
 }

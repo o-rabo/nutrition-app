@@ -85,6 +85,7 @@ export function NutritionProvider({ children }) {
     <NutritionContext.Provider
       value={{
         meals,
+        isLoaded: true,
         addItemToMeal,
         getTotalCalories,
         getMealCalories,

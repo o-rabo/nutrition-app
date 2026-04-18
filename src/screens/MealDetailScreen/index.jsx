@@ -130,7 +130,7 @@ function MealDetailScreen() {
       bottomOffset: 80,
     })
 
-    navigation.navigate('Home')
+    navigation.navigate('MainTabs', { screen: 'Today' })
   }, [
     addItemToMeal,
     mealType,

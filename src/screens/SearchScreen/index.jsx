@@ -17,7 +17,6 @@ import {
   spacing,
   borderRadius,
   Icon,
-  TabBar,
   BarcodeScanner,
   SearchResultCard,
 } from '../../design-system'
@@ -146,6 +145,8 @@ function SearchScreen({ navigation: navigationProp, route: routeProp }) {
 
   const showResults = !loading && results.length > 0
 
+  const hasInput = searchQuery.length > 0
+
   let resultsBody = null
   if (loading) {
     resultsBody = (
@@ -212,6 +213,19 @@ function SearchScreen({ navigation: navigationProp, route: routeProp }) {
         style={styles.safe}
       >
         <View style={styles.headerBlock}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            style={styles.backBtn}
+          >
+            <Icon
+              name="back"
+              size={20}
+              color={colors.accent.icon}
+            />
+          </TouchableOpacity>
           <Text style={styles.title}>
             {`Log your ${mealTypeStr}`}
           </Text>
@@ -220,46 +234,77 @@ function SearchScreen({ navigation: navigationProp, route: routeProp }) {
           </Text>
         </View>
 
-        <View style={styles.searchRow}>
+        <View
+          style={[
+            styles.searchRow,
+            {
+              borderColor: hasInput
+                ? colors.border.medium
+                : colors.border.subtle,
+            },
+          ]}
+        >
           <Icon
             name="search"
-            size={18}
-            color={colors.text.secondary}
+            size={20}
+            color={colors.accent.icon}
           />
           <TextInput
             style={styles.searchInput}
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text)
+              if (text.length === 0) setResults([])
+            }}
             placeholder={`What did you eat for ${mealType}?`}
             placeholderTextColor={colors.text.ghost}
             returnKeyType="search"
           />
-          <TouchableOpacity
-            onPress={() => setScannerVisible(true)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Open barcode scanner"
-          >
-            <Icon
-              name="barcode"
-              size={22}
-              color={colors.accent.icon}
-            />
-          </TouchableOpacity>
+          {hasInput ? (
+            <TouchableOpacity
+              onPress={() => {
+                setSearchQuery('')
+                setResults([])
+              }}
+              hitSlop={{
+                top: 10,
+                bottom: 10,
+                left: 10,
+                right: 10,
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
+              <Icon
+                name="close"
+                size={20}
+                color={colors.accent.icon}
+              />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={() => setScannerVisible(true)}
+              hitSlop={{
+                top: 10,
+                bottom: 10,
+                left: 10,
+                right: 10,
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Open barcode scanner"
+            >
+              <Icon
+                name="barcode"
+                size={20}
+                color={colors.accent.icon}
+              />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.resultsArea}>
           {resultsBody}
         </View>
-
-        <TabBar
-          activeTab="home"
-          onTabPress={(id) => {
-            if (id === 'home') {
-              navigation.navigate('Home')
-            }
-          }}
-        />
       </SafeAreaView>
 
       <BarcodeScanner
@@ -285,6 +330,11 @@ const styles = StyleSheet.create({
     paddingTop: spacing[2],
     paddingBottom: spacing[2],
   },
+  backBtn: {
+    alignSelf: 'flex-start',
+    marginTop: spacing[1],
+    marginBottom: spacing[1],
+  },
   title: {
     fontSize: typography.fontSize.h2,
     fontWeight: String(typography.fontWeight.medium),
@@ -301,7 +351,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background.card,
     borderWidth: 0.5,
-    borderColor: colors.border.medium,
     borderRadius: borderRadius['3xl'],
     paddingVertical: spacing[1.5],
     paddingHorizontal: spacing[2],

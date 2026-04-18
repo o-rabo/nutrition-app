@@ -1,25 +1,8 @@
-import { useState, useCallback } from 'react'
 import { View, Text } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useNavigation, useFocusEffect } from '@react-navigation/native'
-import { colors, typography, spacing, TabBar } from '../../design-system'
+import { colors, typography, spacing } from '../../design-system'
 
 export function DiaryScreen() {
-  const navigation = useNavigation()
-  const [activeTab, setActiveTab] = useState('diary')
-
-  useFocusEffect(
-    useCallback(() => {
-      setActiveTab('diary')
-    }, []),
-  )
-
-  const handleTabPress = (tabId) => {
-    if (tabId === 'today') navigation.navigate('Home')
-    if (tabId === 'diary') navigation.navigate('Diary')
-    if (tabId === 'profile') navigation.navigate('Profile')
-  }
-
   return (
     <SafeAreaView
       edges={['top']}
@@ -56,10 +39,6 @@ export function DiaryScreen() {
           Your meal history will appear here. Coming soon.
         </Text>
       </View>
-      <TabBar
-        activeTab={activeTab}
-        onTabPress={handleTabPress}
-      />
     </SafeAreaView>
   )
 }
