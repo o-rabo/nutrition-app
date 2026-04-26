@@ -3,5 +3,5 @@ export { colors, typography, spacing, borderRadius }
 export { ProgressBar, Icon, Button, MacroTile,
          MealRow, CalorieRing, TabBarItem,
          MacroCard, MealsList, TabBar,
-         BarcodeScanner, SearchResultCard }
+         BarcodeScanner, SearchResultCard, MobileTopNavbar }
   from './components'
