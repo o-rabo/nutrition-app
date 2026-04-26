@@ -1,4 +1,3 @@
-import 'react-native-gesture-handler'
 import { View, Text, ActivityIndicator } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -22,6 +21,27 @@ import { Icon } from './src/design-system'
 
 const Stack = createNativeStackNavigator()
 const Tab = createBottomTabNavigator()
+
+/** Web / deep-link paths (see https://reactnavigation.org/docs/configuring-links) */
+const linking = {
+  prefixes: ['http://localhost:8081', 'http://127.0.0.1:8081'],
+  config: {
+    screens: {
+      MainTabs: {
+        screens: {
+          Today: '',
+          Diary: 'diary',
+          Profile: 'profile',
+        },
+      },
+      Meal: 'meal',
+      Search: 'search',
+      MealDetail: 'meal-detail',
+      BarcodeScanner: 'barcode',
+      MealLog: 'meal-log',
+    },
+  },
+}
 
 const toastConfig = {
   success: ({ text1 }) => (
@@ -189,7 +209,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <NutritionProvider>
-          <NavigationContainer>
+          <NavigationContainer linking={linking}>
             <AppNavigator />
             <Toast config={toastConfig} />
           </NavigationContainer>
