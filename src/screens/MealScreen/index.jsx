@@ -1,23 +1,26 @@
+import { useState, useCallback } from 'react'
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { useNutrition } from '../../context/NutritionContext'
 import {
+  BarcodeScanner,
   colors,
   typography,
   spacing,
   borderRadius,
   Icon,
-  Button,
 } from '../../design-system'
 
-const HEADER_BTN = 40
+const HEADER_SIDE = 40
 
 function MealScreen() {
   const navigation = useNavigation()
@@ -31,19 +34,93 @@ function MealScreen() {
   const items = mealData?.items || []
   const totalKcal = getMealCalories(mealType)
 
-  const totalProtein = items
-    .reduce((s, i) => s + i.protein, 0)
-    .toFixed(1)
-  const totalCarbs = items
-    .reduce((s, i) => s + i.carbs, 0)
-    .toFixed(1)
-  const totalFat = items
-    .reduce((s, i) => s + i.fat, 0)
-    .toFixed(1)
+  const [scannerVisible, setScannerVisible] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const goSearch = () => {
-    navigation.navigate('Search', { mealType })
-  }
+  const totalProtein = Math.round(
+    items.reduce((s, i) => s + (Number(i.protein) || 0), 0),
+  )
+  const totalCarbs = Math.round(
+    items.reduce((s, i) => s + (Number(i.carbs) || 0), 0),
+  )
+  const totalFat = Math.round(
+    items.reduce((s, i) => s + (Number(i.fat) || 0), 0),
+  )
+
+  const handleBarcodeScan = useCallback(async (barcode) => {
+    setLoading(true)
+    try {
+      const response = await fetch(
+        `https://world.openfoodfacts.org/api/v2/product/${barcode.trim()}?fields=product_name,brands,quantity,nutriments`,
+        { headers: { 'User-Agent': 'NutritionApp/1.0' } },
+      )
+      const data = await response.json()
+
+      if (data.status === 1 && data.product) {
+        const p = data.product
+        const n = p.nutriments || {}
+
+        const product = {
+          name:
+            p.product_name
+            || p.product_name_en
+            || p.product_name_de
+            || 'Unknown product',
+          brand: p.brands || '',
+          portion: p.quantity || '100g',
+          calories: Math.round(
+            n['energy-kcal_100g']
+            || (n['energy_100g'] / 4.184)
+            || 0,
+          ),
+          protein: Number((n['proteins_100g'] || 0).toFixed(1)),
+          carbs: Number((n['carbohydrates_100g'] || 0).toFixed(1)),
+          fat: Number((n['fat_100g'] || 0).toFixed(1)),
+          saturates: Number((n['saturated-fat_100g'] || 0).toFixed(1)),
+          unsaturates: Number(
+            (n['unsaturated-fat_100g'] || 0).toFixed(1),
+          ),
+          sugars: Number((n['sugars_100g'] || 0).toFixed(1)),
+          starch: Number((n['starch_100g'] || 0).toFixed(1)),
+          fibre: Number(
+            (n['fiber_100g'] || n['fibre_100g'] || 0).toFixed(1),
+          ),
+          salt: Number((n['salt_100g'] || 0).toFixed(1)),
+          sodium: Number((n['sodium_100g'] || 0).toFixed(1)),
+          energy_kj: Math.round(n['energy_100g'] || 0),
+          vitamins: {
+            b1: Number((n['vitamin-b1_100g'] || 0).toFixed(2)),
+            b2: Number((n['vitamin-b2_100g'] || 0).toFixed(2)),
+            b3: Number((n['vitamin-pp_100g'] || 0).toFixed(2)),
+            iron: Number((n['iron_100g'] || 0).toFixed(2)),
+            calcium: Number((n['calcium_100g'] || 0).toFixed(0)),
+            potassium: Number((n['potassium_100g'] || 0).toFixed(0)),
+            magnesium: Number((n['magnesium_100g'] || 0).toFixed(0)),
+          },
+        }
+
+        navigation.navigate('MealDetail', {
+          mealType,
+          product,
+        })
+      } else {
+        Alert.alert(
+          'Product not found',
+          'No product found for this barcode. Try scanning again.',
+          [{ text: 'OK' }],
+        )
+      }
+    } catch (e) {
+      console.error('Scan error:', e)
+      Alert.alert(
+        'Error',
+        'Something went wrong. Please try again.',
+        [{ text: 'OK' }],
+      )
+    } finally {
+      setLoading(false)
+    }
+  }, [navigation, mealType])
 
   return (
     <SafeAreaView
@@ -51,9 +128,10 @@ function MealScreen() {
       edges={['top']}
     >
       <View style={styles.header}>
-        <View style={styles.headerSide}>
+        <View
+          style={[styles.headerSide, { width: HEADER_SIDE }]}
+        >
           <TouchableOpacity
-            style={styles.headerBtn}
             onPress={() => navigation.goBack()}
             hitSlop={12}
             accessibilityRole="button"
@@ -70,80 +148,57 @@ function MealScreen() {
           style={styles.headerTitle}
           numberOfLines={1}
         >
-          {mealLabel}
+          Today
         </Text>
-        <View style={[styles.headerSide, styles.headerSideRight]}>
-          <TouchableOpacity
-            style={styles.headerBtnAdd}
-            onPress={goSearch}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Add food"
-          >
-            <Icon name="plus" size={22} color="#ffffff" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.summary}>
-        <View>
-          <Text style={styles.summaryLabel}>Total logged</Text>
-          <Text style={styles.summaryKcal}>
-            {`${totalKcal} kcal`}
-          </Text>
-        </View>
-        <View style={styles.summaryMacros}>
-          <View style={styles.macroRow}>
-            <Text style={styles.macroLabel}>Protein</Text>
-            <Text style={styles.macroValue}>
-              {totalProtein}
-              g
-            </Text>
-          </View>
-          <View style={styles.macroRow}>
-            <Text style={styles.macroLabel}>Carbs</Text>
-            <Text style={styles.macroValue}>
-              {totalCarbs}
-              g
-            </Text>
-          </View>
-          <View style={styles.macroRow}>
-            <Text style={styles.macroLabel}>Fat</Text>
-            <Text style={styles.macroValue}>
-              {totalFat}
-              g
-            </Text>
-          </View>
-        </View>
+        <View style={{ width: HEADER_SIDE }} />
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.scrollContent,
-          items.length === 0 && styles.scrollContentEmpty,
-        ]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {items.length === 0 ? (
-          <View style={styles.emptyBlock}>
-            <View style={styles.emptyCircle}>
-              <Icon
-                name="plus"
-                size={28}
-                color={colors.text.muted}
-              />
-            </View>
-            <Text style={styles.emptyTitle}>Nothing logged yet</Text>
-            <Text style={styles.emptySub}>
-              {`Tap + to add food to your ${mealLabel}`}
+        <Text style={styles.mealTitle}>{mealLabel}</Text>
+        <Text style={styles.mealSubtitle}>
+          Key stats at a glance
+        </Text>
+
+        <View style={styles.summary}>
+          <View>
+            <Text style={styles.summaryLabel}>Total</Text>
+            <Text style={styles.summaryKcal}>
+              {`${totalKcal} kcal`}
             </Text>
-            <Button
-              label={`Add food to ${mealLabel}`}
-              onPress={goSearch}
-              style={styles.emptyButton}
-            />
           </View>
+          <View style={styles.summaryMacros}>
+            <View style={styles.macroRow}>
+              <Text style={styles.macroLabel}>Protein</Text>
+              <Text style={styles.macroValue}>
+                {totalProtein}
+                g
+              </Text>
+            </View>
+            <View style={styles.macroRow}>
+              <Text style={styles.macroLabel}>Carbs</Text>
+              <Text style={styles.macroValue}>
+                {totalCarbs}
+                g
+              </Text>
+            </View>
+            <View style={styles.macroRow}>
+              <Text style={styles.macroLabel}>Fat</Text>
+              <Text style={styles.macroValue}>
+                {totalFat}
+                g
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {items.length === 0 ? (
+          <Text style={styles.emptyLine}>
+            {`Nothing logged yet. Tap "Add" to start tracking food.`}
+          </Text>
         ) : (
           items.map((item, index) => {
             const logged = new Date(item.loggedAt)
@@ -151,9 +206,9 @@ function MealScreen() {
               hour: '2-digit',
               minute: '2-digit',
             })
-            const p = Number(item.protein).toFixed(1)
-            const c = Number(item.carbs).toFixed(1)
-            const f = Number(item.fat).toFixed(1)
+            const p = Math.round(Number(item.protein) || 0)
+            const c = Math.round(Number(item.carbs) || 0)
+            const f = Math.round(Number(item.fat) || 0)
             return (
               <View
                 key={`${item.loggedAt}-${index}`}
@@ -185,6 +240,37 @@ function MealScreen() {
           })
         )}
       </ScrollView>
+
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => setScannerVisible(true)}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Add"
+      >
+        <Text style={styles.addButtonText}>Add</Text>
+      </TouchableOpacity>
+
+      <BarcodeScanner
+        visible={scannerVisible}
+        onClose={() => setScannerVisible(false)}
+        onScan={(barcode) => {
+          setScannerVisible(false)
+          handleBarcodeScan(barcode)
+        }}
+      />
+
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator
+            size="large"
+            color="#5bb56e"
+          />
+          <Text style={styles.loadingText}>
+            Looking up product...
+          </Text>
+        </View>
+      )}
     </SafeAreaView>
   )
 }
@@ -203,43 +289,32 @@ const styles = StyleSheet.create({
     paddingBottom: spacing[2],
   },
   headerSide: {
-    width: HEADER_BTN,
     alignItems: 'flex-start',
-  },
-  headerSideRight: {
-    alignItems: 'flex-end',
-  },
-  headerBtn: {
-    width: HEADER_BTN,
-    height: HEADER_BTN,
-    borderRadius: HEADER_BTN / 2,
-    backgroundColor: colors.background.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border.subtle,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerBtnAdd: {
-    width: HEADER_BTN,
-    height: HEADER_BTN,
-    borderRadius: HEADER_BTN / 2,
-    backgroundColor: colors.accent.ring,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   headerTitle: {
     flex: 1,
-    fontSize: typography.fontSize.h3,
+    fontSize: typography.fontSize.base,
     fontWeight: String(typography.fontWeight.medium),
     color: colors.text.primary,
     textAlign: 'center',
   },
+  mealTitle: {
+    fontSize: 28,
+    fontWeight: String(typography.fontWeight.medium),
+    color: colors.text.primary,
+    marginTop: spacing[2],
+    marginBottom: spacing[1],
+  },
+  mealSubtitle: {
+    fontSize: typography.fontSize.bodySmall,
+    color: colors.text.secondary,
+    marginBottom: spacing[2],
+  },
   summary: {
     backgroundColor: colors.background.card,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 0.5,
     borderColor: colors.border.subtle,
     borderRadius: borderRadius.lg,
-    marginHorizontal: spacing.screenHorizontal,
     marginBottom: spacing[2],
     padding: spacing[2],
     flexDirection: 'row',
@@ -247,13 +322,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryLabel: {
-    fontSize: typography.fontSize.caption,
+    fontSize: typography.fontSize.micro,
     color: colors.text.muted,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   summaryKcal: {
-    marginTop: 4,
+    marginTop: spacing[1],
     fontSize: typography.fontSize.h2,
     fontWeight: String(typography.fontWeight.medium),
     color: colors.text.primary,
@@ -280,41 +355,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: spacing[3],
-  },
-  scrollContentEmpty: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  emptyBlock: {
-    alignItems: 'center',
     paddingHorizontal: spacing.screenHorizontal,
+    paddingBottom: spacing[2],
   },
-  emptyCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.background.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border.subtle,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTitle: {
-    marginTop: spacing[1.5],
-    fontSize: typography.fontSize.base,
+  emptyLine: {
+    fontSize: typography.fontSize.bodySmall,
     color: colors.text.muted,
     textAlign: 'center',
-  },
-  emptySub: {
-    marginTop: spacing[1],
-    fontSize: typography.fontSize.bodySmall,
-    color: colors.text.ghost,
-    textAlign: 'center',
-  },
-  emptyButton: {
-    marginTop: spacing[2],
-    alignSelf: 'stretch',
+    marginTop: spacing[4],
   },
   itemCard: {
     backgroundColor: colors.background.card,
@@ -323,7 +371,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     padding: spacing[2],
     marginBottom: spacing[1.5],
-    marginHorizontal: spacing.screenHorizontal,
   },
   itemTop: {
     flexDirection: 'row',
@@ -363,6 +410,31 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: typography.fontSize.micro,
     color: colors.text.ghost,
+  },
+  addButton: {
+    backgroundColor: colors.interactive.primaryBg,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing[2],
+    marginHorizontal: spacing.screenHorizontal,
+    marginBottom: spacing[3],
+    alignItems: 'center',
+  },
+  addButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: String(typography.fontWeight.medium),
+    color: colors.interactive.primaryLabel,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+    backgroundColor: 'rgba(13,27,23,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: '#a8e6b4',
+    marginTop: 12,
+    fontSize: 14,
   },
 })
 
