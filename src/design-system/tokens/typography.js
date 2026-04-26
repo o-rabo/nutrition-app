@@ -47,3 +47,18 @@ export const typography = {
   },
 
 }
+
+export const textStyles = {
+  label: {
+    fontFamily: typography.fontFamily.sans,
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.regular,
+    lineHeight: typography.fontSize.base * typography.lineHeight.snug,
+  },
+  bodyBold: {
+    fontFamily: typography.fontFamily.sans,
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.medium,
+    lineHeight: typography.fontSize.base * typography.lineHeight.snug,
+  },
+}

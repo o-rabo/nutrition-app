@@ -3,24 +3,25 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  FlatList,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState, useMemo, useCallback } from 'react'
+import PagerView from 'react-native-pager-view'
+import { useRef, useState, useMemo } from 'react'
 import { useNavigation } from '@react-navigation/native'
 import { useNutrition } from '../../context/NutritionContext'
 import {
   colors,
   typography,
+  textStyles,
   spacing,
   borderRadius,
   Icon,
   MobileTopNavbar,
+  NavTab,
 } from '../../design-system'
 
 /**
- * Europe/Berlin wall-calendar Y / M / D. Uses Intl (no re-parsing locale strings
- * with `new Date(...)`, which can yield Invalid Date on Hermes / iOS).
+ * Europe/Berlin wall-calendar Y / M / D (Intl; avoids Invalid Date on Hermes).
  */
 const getBerlinYmd = (d = new Date()) => {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -47,7 +48,6 @@ const getBerlinYmd = (d = new Date()) => {
 
 const ymdToKeyNum = (y, m, d) => y * 10000 + m * 100 + d
 
-/** One calendar day earlier (Gregorian; same as civil calendar in Berlin). */
 const previousGregorianYmd = (y, m, d) => {
   const t = new Date(Date.UTC(y, m - 1, d - 1, 12, 0, 0, 0))
   return {
@@ -57,7 +57,6 @@ const previousGregorianYmd = (y, m, d) => {
   }
 }
 
-/** Noon UTC for that calendar day — stable, valid Date for Intl formatting. */
 const ymdToDateUtcNoon = (y, m, d) => new Date(Date.UTC(y, m - 1, d, 12, 0, 0, 0))
 
 const addOneDayUtc = (d) => {
@@ -78,12 +77,7 @@ const addOneDayUtc = (d) => {
   )
 }
 
-/**
- * Berlin calendar days from 2026-01-01 through today, oldest → newest, then
- * reversed so **Today is index 0 (leftmost)** in the horizontal list.
- * ( Uses robust YMD math — not `new Date(toLocaleString())`, which can break
- *   on Hermes / iOS. )
- */
+/** Oldest first, **today last** (rightmost page index = TODAY_INDEX). */
 const generateDates = () => {
   const dates = []
   const { y: ey, m: em, d: ed } = getBerlinYmd()
@@ -98,11 +92,11 @@ const generateDates = () => {
     dates.push(new Date(cur))
     cur = addOneDayUtc(cur)
   }
-  // Today first (newest = index 0) — scroll right for older days.
-  return dates.reverse()
+  return dates
 }
 
 const ALL_DATES = generateDates()
+const TODAY_INDEX = ALL_DATES.length - 1
 
 const formatDateKey = (date) => {
   if (!date || !(date instanceof Date) || Number.isNaN(date.getTime())) {
@@ -136,43 +130,21 @@ const formatDateLabel = (date) => {
   })
 }
 
-const berlinTodayString = () => {
-  const { y, m, d } = getBerlinYmd()
-  return formatDateKey(ymdToDateUtcNoon(y, m, d))
-}
-
-export function DiaryScreen() {
+function DayPage({ date, isToday }) {
   const navigation = useNavigation()
   const {
     meals,
     history: historyFromContext,
-    getTodayString: getTodayStringFromContext,
-    getMealCalories: _getMealCalories,
-    getMealSubtitle: _getMealSubtitle,
-    getTotalCalories,
-    getTotalMacros: _getTotalMacros,
   } = useNutrition()
 
   const history = historyFromContext ?? {}
-  const getTodayString = getTodayStringFromContext ?? berlinTodayString
+  const CALORIE_GOAL = 2950
 
-  const todayString = getTodayString()
-  const [selectedDate, setSelectedDate] = useState(() => {
-    if (ALL_DATES[0]) {
-      return ALL_DATES[0]
-    }
-    const { y, m, d } = getBerlinYmd()
-    return ymdToDateUtcNoon(y, m, d)
-  })
-  const selectedDateKey = formatDateKey(selectedDate)
-  const isToday = selectedDateKey === todayString
+  const dateKey = formatDateKey(date)
 
-  const selectedMeals = useMemo(() => {
-    if (isToday) {
-      return meals
-    }
-    return history[selectedDateKey] || null
-  }, [isToday, meals, history, selectedDateKey])
+  const selectedMeals = isToday
+    ? meals
+    : history[dateKey] || null
 
   const totalKcal = useMemo(() => {
     if (!selectedMeals) {
@@ -205,93 +177,83 @@ export function DiaryScreen() {
     )
   }, [selectedMeals])
 
-  const CALORIE_GOAL = 2950
   const calorieProgress = totalKcal / CALORIE_GOAL
 
-  const getInsight = useCallback(() => {
+  const getInsight = () => {
     const remaining = CALORIE_GOAL - totalKcal
-    const proteinPct = totalMacros.protein / 150
-
     if (totalKcal === 0) {
       return {
         title: 'Start logging your meals',
-        body:
-          "You haven't logged anything yet. "
-          + 'Scan a barcode or search for a food '
-          + 'to get started.',
+        body: "You haven't logged anything yet. "
+          + 'Tap a meal below to get started.',
       }
     }
     if (calorieProgress >= 1) {
       return {
         title: "You've hit your calorie goal",
-        body:
-          'Great job hitting your target today. '
-          + 'Focus on keeping your macros balanced '
-          + 'for the rest of the day.',
+        body: 'Great job hitting your target today. '
+          + 'Keep your macros balanced.',
       }
     }
     if (calorieProgress >= 0.75) {
       return {
         title: 'Good progress today',
-        body: `You've logged ${totalKcal} kcal so far. ${
-          remaining} kcal remaining to hit your goal.`,
+        body: `${totalKcal.toLocaleString()} kcal `
+          + `logged. ${remaining.toLocaleString()}`
+          + ' kcal remaining.',
       }
     }
     if (calorieProgress >= 0.5) {
       return {
         title: 'Halfway there',
-        body: `${remaining} kcal left to reach your `
-          + 'daily goal. Keep logging your meals '
-          + 'to stay on track.',
+        body: `${remaining.toLocaleString()} kcal `
+          + 'left to reach your daily goal.',
       }
     }
-    if (proteinPct < 0.3) {
+    if (totalMacros.protein / 150 < 0.3) {
       return {
         title: 'Boost your protein',
-        body:
-          'Your protein intake is low today. '
-          + 'Try adding a protein-rich food like '
-          + 'chicken, eggs, or Greek yogurt.',
+        body: 'Your protein intake is low. Try '
+          + 'adding chicken, eggs, or Greek yogurt.',
       }
     }
     return {
       title: 'Keep going',
-      body: `You're at ${Math.round(calorieProgress * 100)}% `
-        + 'of your daily goal. Log more meals to '
-        + `reach your target of ${CALORIE_GOAL} kcal.`,
+      body: `You're at ${Math.round(
+        calorieProgress * 100,
+      )}% of your daily goal of `
+        + `${CALORIE_GOAL.toLocaleString()} kcal.`,
     }
-  }, [totalKcal, totalMacros, calorieProgress])
+  }
 
   const insight = getInsight()
 
   const mealRows = useMemo(() => {
-    const mealKeys = [
+    return [
       'breakfast',
       'lunch',
       'dinner',
       'snacks',
-    ]
-    return mealKeys.map((key) => {
+    ].map((key) => {
       const meal = selectedMeals?.[key]
       const items = meal?.items || []
       const kcal = items.reduce(
-        (sum, item) => sum + (item.kcal || 0),
+        (sum, i) => sum + (i.kcal || 0),
         0,
       )
-
       let subtitle = 'Not logged yet'
       if (items.length === 1) {
         subtitle = items[0].name
       }
       if (items.length > 1) {
-        subtitle = `${items[0].name} +${
-          items.length - 1} more`
+        subtitle = `${items[0].name} `
+          + `+${items.length - 1} more`
       }
-
       return {
         id: key,
         label: meal?.label
-          || key.charAt(0).toUpperCase() + key.slice(1),
+          || key.charAt(0).toUpperCase()
+          + key.slice(1),
         subtitle,
         iconName: meal?.iconName || key,
         calories: kcal > 0 ? kcal : undefined,
@@ -300,11 +262,378 @@ export function DiaryScreen() {
   }, [selectedMeals])
 
   return (
+    <ScrollView
+      style={{ flex: 1 }}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{
+        paddingHorizontal: spacing.screenHorizontal,
+        paddingTop: spacing[2],
+        paddingBottom: spacing[4],
+      }}
+    >
+      <View style={{ marginBottom: spacing[1.5] }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'baseline',
+            gap: spacing[1],
+            marginBottom: spacing.half,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 2 * typography.fontSize.h1,
+              fontWeight: typography.fontWeight.medium,
+              color: colors.text.primary,
+              lineHeight: spacing[7],
+            }}
+          >
+            {totalKcal.toLocaleString()}
+          </Text>
+          <Text
+            style={{
+              fontSize: typography.fontSize.base,
+              color: colors.text.secondary,
+            }}
+          >
+            kcal
+          </Text>
+        </View>
+        <Text
+          style={{
+            fontSize: typography.fontSize.bodySmall,
+            fontWeight: typography.fontWeight.medium,
+            color: calorieProgress >= 1
+              ? colors.state.success
+              : colors.accent.icon,
+          }}
+        >
+          {calorieProgress >= 1
+            ? 'Goal reached!'
+            : `${(CALORIE_GOAL - totalKcal)
+              .toLocaleString()} kcal remaining`}
+        </Text>
+      </View>
+
+      <View
+        style={{
+          backgroundColor: colors.background.card,
+          borderWidth: spacing.px / 2,
+          borderColor: colors.border.subtle,
+          borderRadius: borderRadius['2xl'],
+          padding: spacing[2],
+          marginBottom: spacing[2],
+        }}
+      >
+        <Text
+          style={{
+            fontSize: typography.fontSize.base,
+            fontWeight: typography.fontWeight.medium,
+            color: colors.text.primary,
+            marginBottom: spacing[1.5] / 2,
+          }}
+        >
+          {insight.title}
+        </Text>
+        <Text
+          style={{
+            fontSize: typography.fontSize.bodySmall,
+            color: colors.text.secondary,
+            lineHeight: spacing[2.5],
+          }}
+        >
+          {insight.body}
+        </Text>
+      </View>
+
+      <View
+        style={{
+          backgroundColor: colors.background.card,
+          borderWidth: spacing.px / 2,
+          borderColor: colors.border.subtle,
+          borderRadius: borderRadius['2xl'],
+          padding: spacing[2],
+          marginBottom: spacing[2],
+        }}
+      >
+        <Text
+          style={{
+            fontSize: typography.fontSize.micro,
+            color: colors.text.muted,
+            letterSpacing: typography.letterSpacing.widest,
+            textTransform: typography.textTransform.uppercase,
+            marginBottom: spacing[1.5],
+          }}
+        >
+          Macros
+        </Text>
+        {[
+          {
+            label: 'Calories',
+            value: totalKcal,
+            goal: CALORIE_GOAL,
+            unit: 'kcal',
+            pct: Math.min(calorieProgress, 1),
+          },
+          {
+            label: 'Protein',
+            value: Math.round(totalMacros.protein),
+            goal: 150,
+            unit: 'g',
+            pct: Math.min(
+              totalMacros.protein / 150,
+              1,
+            ),
+          },
+          {
+            label: 'Carbs',
+            value: Math.round(totalMacros.carbs),
+            goal: 300,
+            unit: 'g',
+            pct: Math.min(
+              totalMacros.carbs / 300,
+              1,
+            ),
+          },
+          {
+            label: 'Fat',
+            value: Math.round(totalMacros.fat),
+            goal: 65,
+            unit: 'g',
+            pct: Math.min(
+              totalMacros.fat / 65,
+              1,
+            ),
+          },
+        ].map((macro, i, arr) => (
+          <View
+            key={macro.label}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: spacing[1],
+              borderBottomWidth: i < arr.length - 1
+                ? spacing.px / 2
+                : 0,
+              borderBottomColor: colors.border.subtle,
+            }}
+          >
+            <Text
+              style={{
+                ...textStyles.label,
+                color: colors.text.secondary,
+                flex: 1,
+              }}
+            >
+              {macro.label}
+            </Text>
+            <View
+              style={{
+                flex: 2,
+                marginHorizontal: spacing[1.5],
+              }}
+            >
+              <View
+                style={{
+                  height: 3 * spacing.px,
+                  backgroundColor: colors.ring.track,
+                  borderRadius: borderRadius.subtle,
+                }}
+              >
+                <View
+                  style={{
+                    height: 3 * spacing.px,
+                    width: `${macro.pct * 100}%`,
+                    backgroundColor: macro.pct >= 1
+                      ? colors.state.success
+                      : colors.accent.bar,
+                    borderRadius: borderRadius.subtle,
+                  }}
+                />
+              </View>
+            </View>
+            <Text
+              style={{
+                ...textStyles.label,
+                color: colors.text.accent,
+                fontWeight: typography.fontWeight.medium,
+                textAlign: 'right',
+                minWidth: 11.25 * spacing[1],
+              }}
+            >
+              {macro.value.toLocaleString()}
+              <Text
+                style={{
+                  color: colors.text.muted,
+                  fontWeight: typography.fontWeight.regular,
+                  fontSize: typography.fontSize.micro,
+                }}
+              >
+                {' '}
+                / {macro.goal}
+                {macro.unit}
+              </Text>
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      <Text
+        style={{
+          fontSize: typography.fontSize.micro,
+          color: colors.text.muted,
+          letterSpacing: typography.letterSpacing.widest,
+          textTransform: typography.textTransform.uppercase,
+          marginBottom: spacing[1.5],
+        }}
+      >
+        Meals
+      </Text>
+
+      {mealRows.map((meal) => (
+        <TouchableOpacity
+          key={meal.id}
+          onPress={() => {
+            if (isToday) {
+              navigation.navigate('Meal', {
+                mealType: meal.id,
+              })
+            }
+          }}
+          activeOpacity={isToday ? 0.7 : 1}
+          style={{
+            backgroundColor: colors.background.card,
+            borderWidth: spacing.px / 2,
+            borderColor: colors.border.subtle,
+            borderRadius: borderRadius['2xl'],
+            padding: spacing[2],
+            marginBottom: spacing[1.5],
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.iconGap,
+            }}
+          >
+            <View
+              style={{
+                width: spacing[5],
+                height: spacing[5],
+                backgroundColor: colors.background.iconWell,
+                borderRadius: borderRadius.lg,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon
+                name={meal.iconName}
+                size={typography.fontSize.h3}
+                color={colors.accent.icon}
+              />
+            </View>
+            <View>
+              <Text
+                style={{
+                  ...textStyles.label,
+                  fontWeight: typography.fontWeight.medium,
+                  color: colors.text.primary,
+                }}
+              >
+                {meal.label}
+              </Text>
+              <Text
+                style={{
+                  fontSize: typography.fontSize.bodySmall,
+                  color: colors.text.secondary,
+                  marginTop: 2 * spacing.px,
+                }}
+              >
+                {meal.subtitle}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ alignItems: 'flex-end' }}>
+            {meal.calories
+              ? (
+                  <>
+                    <Text
+                      style={{
+                        ...textStyles.label,
+                        fontWeight: typography.fontWeight.medium,
+                        color: colors.text.accent,
+                      }}
+                    >
+                      {meal.calories.toLocaleString()}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: typography.fontSize.micro,
+                        color: colors.text.muted,
+                      }}
+                    >
+                      kcal
+                    </Text>
+                  </>
+                )
+              : (
+                  <Text
+                    style={{
+                      ...textStyles.label,
+                      color: colors.text.ghost,
+                    }}
+                  >
+                    {isToday ? '+ add' : 'Not logged'}
+                  </Text>
+                )}
+          </View>
+        </TouchableOpacity>
+      ))}
+
+      {!selectedMeals && !isToday && (
+        <View
+          style={{
+            alignItems: 'center',
+            paddingVertical: spacing[4],
+          }}
+        >
+          <Text
+            style={{
+              ...textStyles.label,
+              color: colors.text.muted,
+              textAlign: 'center',
+            }}
+          >
+            No meals logged on this day.
+          </Text>
+        </View>
+      )}
+    </ScrollView>
+  )
+}
+
+export function DiaryScreen() {
+  const navigation = useNavigation()
+  const pagerRef = useRef(null)
+  const [currentIndex, setCurrentIndex] = useState(TODAY_INDEX)
+
+  const prevDate = ALL_DATES[currentIndex - 1]
+  const currDate = ALL_DATES[currentIndex]
+  const nextDate = ALL_DATES[currentIndex + 1]
+
+  return (
     <SafeAreaView
       edges={['top']}
-      style={{ flex: 1, backgroundColor: colors.background.app }}
+      style={{
+        flex: 1,
+        backgroundColor: colors.background.app,
+      }}
     >
-
       <MobileTopNavbar
         title="Diary"
         leftIcon="back"
@@ -315,434 +644,82 @@ export function DiaryScreen() {
         }}
       />
 
-      <FlatList
-        data={ALL_DATES}
-        horizontal
-        inverted={false}
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(item, index) => {
-          if (item instanceof Date && !Number.isNaN(item.getTime())) {
-            return formatDateKey(item) || `i-${index}`
-          }
-          return `i-${index}`
-        }}
-        contentContainerStyle={{
-          paddingHorizontal: spacing.screenHorizontal,
-          paddingBottom: spacing[1],
-        }}
-        renderItem={({ item: date }) => {
-          const key = formatDateKey(date)
-          const isSelected
-            = key === formatDateKey(selectedDate)
-          const hasData
-            = key === todayString
-              ? getTotalCalories() > 0
-              : !!history[key]
-
-          return (
-            <TouchableOpacity
-              onPress={() => setSelectedDate(date)}
-              style={{
-                paddingHorizontal: spacing[1.5],
-                paddingVertical: spacing[1],
-                marginRight: spacing[1],
-                borderBottomWidth: isSelected ? 2 * spacing.px : 0,
-                borderBottomColor: colors.accent.ring,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: typography.fontSize.bodySmall,
-                  fontWeight: isSelected
-                    ? typography.fontWeight.medium
-                    : typography.fontWeight.regular,
-                  color: isSelected
-                    ? colors.text.primary
-                    : colors.text.muted,
-                }}
-              >
-                {formatDateLabel(date)}
-              </Text>
-
-              {hasData && !isSelected && (
-                <View
-                  style={{
-                    width: spacing.half,
-                    height: spacing.half,
-                    borderRadius: borderRadius.subtle,
-                    backgroundColor: colors.accent.ring,
-                    alignSelf: 'center',
-                    marginTop: 3 * spacing.px,
-                  }}
-                />
-              )}
-            </TouchableOpacity>
-          )
-        }}
-      />
-
       <View
         style={{
-          height: spacing.px / 2,
-          backgroundColor: colors.border.subtle,
-          marginBottom: spacing[2],
-        }}
-      />
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
+          flexDirection: 'row',
+          alignItems: 'flex-end',
+          borderBottomWidth: spacing.px / 2,
+          borderBottomColor: colors.border.subtle,
           paddingHorizontal: spacing.screenHorizontal,
-          paddingBottom: spacing[4],
         }}
       >
+        <View style={{ flex: 1, alignItems: 'flex-start' }}>
+          {prevDate && (
+            <NavTab
+              label={formatDateLabel(prevDate)}
+              active={false}
+              onPress={() => {
+                if (currentIndex > 0) {
+                  const i = currentIndex - 1
+                  pagerRef.current?.setPage(i)
+                  setCurrentIndex(i)
+                }
+              }}
+            />
+          )}
+        </View>
 
-        <View style={{ marginBottom: spacing[1] }}>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          {currDate && (
+            <NavTab
+              label={formatDateLabel(currDate)}
+              active
+              onPress={() => {
+                console.log('open date picker')
+              }}
+            />
+          )}
+        </View>
+
+        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+          {nextDate && (
+            <NavTab
+              label={formatDateLabel(nextDate)}
+              active={false}
+              onPress={() => {
+                if (currentIndex < TODAY_INDEX) {
+                  const i = currentIndex + 1
+                  pagerRef.current?.setPage(i)
+                  setCurrentIndex(i)
+                }
+              }}
+            />
+          )}
+        </View>
+      </View>
+
+      <PagerView
+        ref={pagerRef}
+        style={{ flex: 1 }}
+        initialPage={TODAY_INDEX}
+        onPageSelected={(e) => {
+          setCurrentIndex(e.nativeEvent.position)
+        }}
+        scrollEnabled
+        orientation="horizontal"
+      >
+        {ALL_DATES.map((date, index) => (
           <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'baseline',
-              gap: spacing[1.5] / 2,
-              marginBottom: spacing.half,
-            }}
+            key={formatDateKey(date) || String(index)}
+            style={{ flex: 1 }}
           >
-            <Text
-              style={{
-                fontSize: 2 * typography.fontSize.h1,
-                fontWeight: typography.fontWeight.medium,
-                color: colors.text.primary,
-                lineHeight: spacing[7],
-              }}
-            >
-              {totalKcal.toLocaleString()}
-            </Text>
-            <Text
-              style={{
-                fontSize: typography.fontSize.base,
-                color: colors.text.secondary,
-              }}
-            >
-              kcal
-            </Text>
+            <DayPage
+              date={date}
+              isToday={index === TODAY_INDEX}
+            />
           </View>
-
-          <Text
-            style={{
-              fontSize: typography.fontSize.bodySmall,
-              color: calorieProgress >= 1
-                ? colors.state.success
-                : colors.accent.icon,
-              fontWeight: typography.fontWeight.medium,
-            }}
-          >
-            {calorieProgress >= 1
-              ? `Goal reached! ${totalKcal.toLocaleString()
-              } kcal logged`
-              : `Under your goal · ${
-                (CALORIE_GOAL - totalKcal).toLocaleString()
-              } kcal remaining`}
-          </Text>
-        </View>
-
-        <View
-          style={{
-            backgroundColor: colors.background.card,
-            borderWidth: spacing.px / 2,
-            borderColor: colors.border.subtle,
-            borderRadius: borderRadius['2xl'],
-            padding: spacing[2],
-            marginBottom: spacing[2],
-          }}
-        >
-          <Text
-            style={{
-              fontSize: typography.fontSize.base,
-              fontWeight: typography.fontWeight.medium,
-              color: colors.text.primary,
-              marginBottom: spacing[1.5] / 2,
-            }}
-          >
-            {insight.title}
-          </Text>
-          <Text
-            style={{
-              fontSize: typography.fontSize.bodySmall,
-              color: colors.text.secondary,
-              lineHeight: spacing[2.5],
-            }}
-          >
-            {insight.body}
-          </Text>
-        </View>
-
-        <View
-          style={{
-            backgroundColor: colors.background.card,
-            borderWidth: spacing.px / 2,
-            borderColor: colors.border.subtle,
-            borderRadius: borderRadius['2xl'],
-            padding: spacing[2],
-            marginBottom: spacing[2],
-          }}
-        >
-          <Text
-            style={{
-              fontSize: typography.fontSize.micro,
-              color: colors.text.muted,
-              letterSpacing: typography.letterSpacing.widest,
-              textTransform: typography.textTransform.uppercase,
-              marginBottom: spacing[1.5],
-            }}
-          >
-            Macros
-          </Text>
-
-          {[
-            {
-              label: 'Calories',
-              value: totalKcal,
-              goal: CALORIE_GOAL,
-              unit: 'kcal',
-              pct: Math.min(calorieProgress, 1),
-            },
-            {
-              label: 'Protein',
-              value: Math.round(totalMacros.protein),
-              goal: 150,
-              unit: 'g',
-              pct: Math.min(totalMacros.protein / 150, 1),
-            },
-            {
-              label: 'Carbs',
-              value: Math.round(totalMacros.carbs),
-              goal: 300,
-              unit: 'g',
-              pct: Math.min(totalMacros.carbs / 300, 1),
-            },
-            {
-              label: 'Fat',
-              value: Math.round(totalMacros.fat),
-              goal: 65,
-              unit: 'g',
-              pct: Math.min(totalMacros.fat / 65, 1),
-            },
-          ].map((macro, index, arr) => (
-            <View
-              key={macro.label}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingVertical: spacing[1],
-                borderBottomWidth: index < arr.length - 1
-                  ? spacing.px / 2
-                  : 0,
-                borderBottomColor: colors.border.subtle,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: typography.fontSize.bodySmall,
-                  color: colors.text.secondary,
-                  flex: 1,
-                }}
-              >
-                {macro.label}
-              </Text>
-              <View
-                style={{
-                  flex: 2,
-                  marginHorizontal: spacing[1.5],
-                }}
-              >
-                <View
-                  style={{
-                    height: 3 * spacing.px,
-                    backgroundColor: colors.ring.track,
-                    borderRadius: borderRadius.subtle,
-                  }}
-                >
-                  <View
-                    style={{
-                      height: 3 * spacing.px,
-                      width: `${macro.pct * 100}%`,
-                      backgroundColor: macro.pct >= 1
-                        ? colors.state.success
-                        : colors.accent.bar,
-                      borderRadius: borderRadius.subtle,
-                    }}
-                  />
-                </View>
-              </View>
-              <Text
-                style={{
-                  fontSize: typography.fontSize.bodySmall,
-                  color: colors.text.accent,
-                  fontWeight: typography.fontWeight.medium,
-                  textAlign: 'right',
-                  minWidth: 11.25 * spacing[1],
-                }}
-              >
-                {macro.value.toLocaleString()}
-                {' '}
-                <Text
-                  style={{
-                    color: colors.text.muted,
-                    fontWeight: typography.fontWeight.regular,
-                    fontSize: typography.fontSize.micro,
-                  }}
-                >
-                  {`/ ${macro.goal}${macro.unit}`}
-                </Text>
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        <Text
-          style={{
-            fontSize: typography.fontSize.micro,
-            color: colors.text.muted,
-            letterSpacing: typography.letterSpacing.widest,
-            textTransform: typography.textTransform.uppercase,
-            marginBottom: spacing[1.5],
-          }}
-        >
-          Meals
-        </Text>
-
-        {mealRows.map((meal) => (
-          <TouchableOpacity
-            key={meal.id}
-            onPress={() => {
-              if (isToday) {
-                navigation.navigate('Meal', {
-                  mealType: meal.id,
-                })
-              }
-            }}
-            activeOpacity={isToday ? 0.7 : 1}
-            style={{
-              backgroundColor: colors.background.card,
-              borderWidth: spacing.px / 2,
-              borderColor: colors.border.subtle,
-              borderRadius: borderRadius['2xl'],
-              padding: spacing[2],
-              marginBottom: spacing[1.5],
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.iconGap,
-              }}
-            >
-              <View
-                style={{
-                  width: spacing[5],
-                  height: spacing[5],
-                  backgroundColor: colors.background.iconWell,
-                  borderRadius: borderRadius.lg,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Icon
-                  name={meal.iconName}
-                  size={typography.fontSize.h3}
-                  color={colors.accent.icon}
-                />
-              </View>
-              <View>
-                <Text
-                  style={{
-                    fontSize: typography.fontSize.base,
-                    fontWeight: typography.fontWeight.medium,
-                    color: colors.text.primary,
-                  }}
-                >
-                  {meal.label}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: typography.fontSize.bodySmall,
-                    color: colors.text.secondary,
-                    marginTop: 2 * spacing.px,
-                  }}
-                >
-                  {meal.subtitle}
-                </Text>
-              </View>
-            </View>
-
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing[1],
-              }}
-            >
-              {meal.calories
-                ? (
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text
-                        style={{
-                          fontSize: typography.fontSize.base,
-                          fontWeight: typography.fontWeight.medium,
-                          color: colors.text.accent,
-                        }}
-                      >
-                        {meal.calories.toLocaleString()}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: typography.fontSize.micro,
-                          color: colors.text.muted,
-                        }}
-                      >
-                        kcal
-                      </Text>
-                    </View>
-                  )
-                : (
-                    <Text
-                      style={{
-                        fontSize: typography.fontSize.bodySmall,
-                        color: colors.text.ghost,
-                      }}
-                    >
-                      {isToday ? '+ add' : 'Not logged'}
-                    </Text>
-                  )}
-            </View>
-          </TouchableOpacity>
         ))}
-
-        {!selectedMeals && !isToday && (
-          <View
-            style={{
-              alignItems: 'center',
-              paddingVertical: spacing[4],
-            }}
-          >
-            <Text
-              style={{
-                fontSize: typography.fontSize.base,
-                color: colors.text.muted,
-                textAlign: 'center',
-              }}
-            >
-              No meals logged on this day.
-            </Text>
-          </View>
-        )}
-
-      </ScrollView>
-
+      </PagerView>
     </SafeAreaView>
   )
 }
